@@ -1,0 +1,392 @@
+```{r installing required packages echo = }
+library(ggplot2)
+library(gridExtra)
+library(corrplot)
+library(glmnet)
+library(gridExtra)
+library(psych)
+```
+
+
+
+
+```{r importing datasets}
+getwd()
+train = read.csv("train.csv",header = T,sep = ',')
+test = read.csv("test.csv", header = T,sep = ",")
+test$SalePrice = NA
+tt = rbind(train,test)
+dim(tt)
+head(tt)
+str(tt)
+```
+
+```{r echo = False}
+
+hd = read.csv('HousingData.csv',header = T,sep = ",")
+dim(hd)
+str(hd)
+
+```
+
+```{r checking for correlations}
+all_numeric_variables = which(sapply(hd, is.numeric))
+all_numeric_values = hd[,all_numeric_variables]
+categoriacal_vars = which(sapply(hd, is.factor))
+paste("numeric variables are ", length(all_numeric_values))
+paste("categoriacal variables are ", length(categoriacal_vars))
+
+#correlations of numeric variables with saleprice
+library(corrplot)
+numeric_cor = cor(all_numeric_values, use = "pairwise.complete.obs")
+sort_cor = as.matrix(sort(numeric_cor[,'SalePrice'],decreasing = TRUE))
+high_correlations = names(which(apply(sort_cor,1,function(x) abs(x)>0.5)))
+final_num_cor = numeric_cor[high_correlations,high_correlations]
+corrplot.mixed(final_num_cor,tl.col = "black",tl.pos = "lt")
+
+
+```
+
+```{r }
+hd$MSZoning = as.numeric(factor(hd$MSZoning))
+hd$Street = as.numeric(factor(hd$Street))
+hd$Alley = as.numeric(factor(hd$Alley))
+hd$LotShape = as.numeric(factor(hd$LotShape))
+hd$LandContour = as.numeric(factor(hd$LandContour))
+hd$Utilities = as.numeric(factor(hd$Utilities))
+hd$LotConfig = as.numeric(factor(hd$LotConfig))
+hd$LandSlope = as.numeric(factor(hd$LandSlope))
+hd$Neighborhood <- as.numeric(factor(hd$Neighborhood))
+hd$Condition1 = as.numeric(factor(hd$Condition1))
+hd$Condition2 = as.numeric(factor(hd$Condition2))
+hd$BldgType = as.numeric(factor(hd$BldgType))
+hd$HouseStyle = as.numeric(factor(hd$HouseStyle))
+hd$RoofStyle = as.numeric(factor(hd$RoofStyle))
+hd$RoofMatl = as.numeric(factor(hd$RoofMatl))
+hd$Exterior1st = as.numeric(factor(hd$Exterior1st))
+hd$Exterior2nd = as.numeric(factor(hd$Exterior2nd))
+hd$ExterQual = as.numeric(factor(hd$ExterQual))
+hd$ExterCond = as.numeric(factor(hd$ExterCond))
+hd$Foundation = as.numeric(factor(hd$Foundation))
+hd$BsmtQual = as.numeric(factor(hd$BsmtQual))
+hd$BsmtCond = as.numeric(factor(hd$BsmtCond))
+hd$BsmtExposure = as.numeric(factor(hd$BsmtExposure))
+hd$BsmtFinType1 = as.numeric(factor(hd$BsmtFinType1))
+hd$BsmtFinType2 = as.numeric(factor(hd$BsmtFinType2))
+hd$Heating = as.numeric(factor(hd$Heating))
+hd$HeatingQC = as.numeric(factor(hd$HeatingQC))
+hd$CentralAir = as.numeric(factor(hd$CentralAir))
+hd$Electrical = as.numeric(factor(hd$Electrical))
+hd$KitchenQual = as.numeric(factor(hd$KitchenQual))
+hd$TotRmsAbvGrd = as.numeric(factor(hd$TotRmsAbvGrd))
+hd$Functional = as.numeric(factor(hd$Functional))
+hd$FireplaceQu = as.numeric(factor(hd$FireplaceQu))
+hd$GarageType = as.numeric(factor(hd$GarageType))
+hd$GarageFinish = as.numeric(factor(hd$GarageFinish))
+hd$GarageQual = as.numeric(factor(hd$GarageQual))
+hd$GarageCond = as.numeric(factor(hd$GarageCond))
+hd$PavedDrive = as.numeric(factor(hd$PavedDrive))
+hd$PoolQC = as.numeric(factor(hd$PoolQC))
+hd$Fence = as.numeric(factor(hd$Fence))
+hd$SaleType = as.numeric(factor(hd$SaleType))
+hd$MiscFeature = as.numeric(factor(hd$MiscFeature))
+hd$MasVnrType = as.numeric(factor(hd$MasVnrType))
+hd$SaleCondition = as.numeric(factor(hd$SaleCondition))
+hd$OverallQual = as.numeric(factor(hd$OverallQual))
+
+
+```
+
+```{r handling null values}
+sum(is.na(hd)) #found 15424 null values
+
+
+#All the null values of below variables are replaced with 0 because those features is not available for a particular variable
+
+
+hd$Alley[which(is.na(hd$Alley))] = 0
+hd$PoolQC[which(is.na(hd$PoolQC))] = 0
+hd$Fence[which(is.na(hd$Fence))] = 0
+hd$MiscFeature[which(is.na(hd$MiscFeature))] = 0
+hd$FireplaceQu[which(is.na(hd$FireplaceQu))] = 0
+
+#Garage
+hd$GarageType[which(is.na(hd$GarageType))] = 0
+hd$GarageFinish[which(is.na(hd$GarageFinish))] = 0
+hd$GarageQual[which(is.na(hd$GarageQual))] = 0
+hd$GarageCond[which(is.na(hd$GarageCond))] = 0
+
+hd$LotFrontage[which(is.na(hd$LotFrontage))] = 0
+
+#Basement
+hd$BsmtFinType2[which(is.na(hd$BsmtFinType2))] = 0
+hd$BsmtFinType1[which(is.na(hd$BsmtFinType1))] = 0
+hd$BsmtExposure[which(is.na(hd$BsmtExposure))] = 0
+hd$BsmtCond[which(is.na(hd$BsmtCond))] = 0
+hd$BsmtFullBath[which(is.na(hd$BsmtFullBath))] = 0
+hd$BsmtQual[which(is.na(hd$BsmtQual))] = 0
+hd$MasVnrType[which(is.na(hd$MasVnrType))] = 0
+hd$MasVnrArea[which(is.na(hd$MasVnrArea))] = 0
+
+sum(is.na(hd)) #ran again null values drop to 1639 
+
+sum(is.na(hd$SalePrice)) #sale price for test set contains 1459 null values
+
+which(is.na(hd$SalePrice)) #19 saleprice null values belong to traing set so replacing them with their avg
+
+hd[c(1442 ,1443, 1444 ,1445, 1446 ,1447, 1448 ,1449 ,1450, 1451 ,1452, 1453 ,1454 ,1455, 1456, 1457, 1458, 1459 ,1460),81] = 180921
+
+
+#investigating (1639 - 1440 = 180) 161 null values
+
+sum(is.na(hd$GarageYrBlt)) #as 159 null values, I will look into garage year built after I convert all year variables into factors
+
+
+```
+
+
+```{r dealing with years}
+#year built make sense
+
+library(ggplot2)
+
+PriceVSYearBuilt = ggplot(data = hd[!is.na(hd$SalePrice),], 
+            aes(x= YearBuilt,y = SalePrice)) +
+  geom_bar(stat='summary', fun.y = "median", fill='blue')+
+  scale_y_continuous(breaks = seq(0, 800000,by=50000))+
+  scale_x_continuous(breaks = seq(1870,2010,by = 10))+
+  geom_hline(yintercept = 180921) #y_intercept is mean            
+  #saleprice
+mean(hd$SalePrice)
+
+test_sp = hd[!is.na(hd$SalePrice),]
+
+soldyr = ggplot(data = hd, 
+            aes(x= hd$YrSold,y = hd$SalePrice)) +
+  geom_bar(stat='summary', fun.y = "median", fill='blue')+
+  scale_y_continuous(breaks = seq(0, 500000,by=25000))+ 
+  geom_hline(yintercept = 163000) #median saleprice
+
+median(hd$SalePrice)
+
+library(gridExtra)
+grid.arrange(PriceVSYearBuilt, soldyr, widths=c(1,2))
+
+```
+
+```{r converting years to factors}
+hd$YearBuilt = as.numeric(as.factor(hd$YearBuilt))
+hd$YrSold = as.numeric(as.factor(hd$YrSold))
+hd$GarageYrBlt = as.numeric(as.factor(hd$GarageYrBlt))
+hd$YearRemodAdd = as.numeric(as.factor(hd$YearRemodAdd))
+```
+
+
+```{r back to null values}
+sum(is.na(hd$GarageYrBlt))
+hd$GarageYrBlt[which(is.na(hd$GarageYrBlt))] = 0
+
+sum(is.na(hd)) #left with 21 null values excluding null values for saleprice in test set
+
+#removing 21 null values which can't be handled
+#hd = na.omit(hd[!is.na(hd$SalePrice),])
+
+```
+
+
+
+Overall Quality variable has high correlation with Saleprice. The average sale price for a house with excellent(10) overall quality is $435000, which is more than double when compared to house with average(5) overall quality of sale price $150000. So  the saleprice has upward curve as overall quality increases.
+
+```{r quality variables}
+qq = ggplot(data = hd[!is.na(hd$SalePrice),], aes(factor(OverallQual),SalePrice))+
+  geom_boxplot(col = 'blue')+ labs(x = "Overall Quality")+
+  scale_y_continuous(breaks = seq(0, 800000,by=150000))
+qq
+```
+
+```{r overall condition}
+sc = ggplot(data = hd[!is.na(hd$SalePrice),], aes(factor(OverallCond) ,SalePrice))+
+  geom_boxplot(col = 'blue')+ labs(x = "Condition of Sale")+
+  scale_y_continuous(breaks = seq(0, 800000,by=150000))
+sc
+
+```
+
+```{r removing unnecessary columns}
+hd$PoolArea = NULL #removed Poolarea beacause only rare houses have pools
+hd$PoolQC = NULL   #having PoolQC dosen't make any sense so removed PoolQC
+```
+
+
+```{r checking for normality assumption}
+qqnorm(hd$SalePrice) 
+qqline(hd$SalePrice)
+#the curve tells saleprice is not normally distributed so I need to transform saleprice with log
+hd$SalePrice = log(hd$SalePrice)
+log_SalePrice = log(hd$SalePrice)
+qqnorm(log_SalePrice)
+qqline(log_SalePrice)
+```
+
+
+
+```{r subseting}
+
+#spliting dataset 50-50 because originally it was 50% train and 50% test.
+y_train = as.matrix(hd[2:1460,79])
+x_train = as.matrix(hd[2:1460,2:78])
+
+dim(y_train)
+dim(x_train)
+
+x_test = as.matrix(hd[1461:2919,2:78])
+y_test = as.matrix(hd[1461:2919,79])
+dim(x_test)
+dim(y_test)
+
+
+
+```
+
+
+
+```{r selection methods}
+#y_matrix = as.matrix(log_SalePrice[!is.na(log_SalePrice)])
+
+null = lm(y_train ~ 1, data=hd)
+null
+hd$Id = NULL
+
+
+
+#rest = hd[1:1460,1:77]
+#rest_matrix = as.matrix(rest)
+#sum(is.na(rest_matrix))
+#rest_matrix = na.omit(rest_matrix)
+
+
+full = lm(y_train ~ x_train, data=hd)
+full
+sum(is.na(y_train))
+sum(is.na(x_train))
+x_train[which(is.na(x_train))] = 0
+
+#stepwise selection
+hpStep = step(null, scope = list(upper=full), direction="both") #AIC=-5580.37
+summary(hpStep)
+
+RSS <- c(crossprod(hpStep$residuals))
+MSE <- RSS / length(hpStep$residuals)
+RMSE <- sqrt(MSE) #0.1420
+print(RMSE)
+
+
+multiple_coef = hpStep$coefficients
+#multiple_coef = exp(hpStep$coefficients)
+
+
+```
+
+
+```{r outliers and residual analysis}
+cooksd = cooks.distance(hpStep)
+plot(cooksd, pch="*", cex=2, main="Influential Obs by Cooks distance")  # plot cook's distance
+abline(h = 4*mean(cooksd, na.rm=T), col="red") 
+
+influential <- as.numeric(names(cooksd)[(cooksd > 4*mean(cooksd, na.rm=T))])  # influential row numbers
+head(hd[influential,])  # influential observations
+
+hd = hd[-c(31 ,463  ,489  ,496  ,524,  549  ,583  ,589,  629,  633,  813,  917  ,945  ,969  ,971 ,1182, 1212,1299, 1338),] #deleted outliers
+
+
+plot(hpStep$residuals) #residuals are randomly scattered
+
+
+```
+
+```{r expoting cleaned dataset}
+#write.csv(hd,"E:/Documents/ADVANCED DATA ANALYSIS/house-prices-advanced-regression-techniques/Advanced Data Analysis/cluster.csv")
+```
+
+```{r ridge regression}
+#ridge model
+
+fit = glmnet(x_train, y_train)
+
+#cross validation to choose lambda
+cvfit_ridge = cv.glmnet(x_train,y_train,alpha = 0)
+plot(cvfit_ridge)
+print(cvfit_ridge$lambda.min)
+coef(cvfit_ridge, s="lambda.min")
+ridge_coef = cvfit_ridge$glmnet.fit$beta[,cvfit_ridge$glmnet.fit$lambda == cvfit_ridge$lambda.min]
+#ridge_coef = exp(ridge_coef)
+
+
+c = as.matrix(coef(fit, s=0.06789084))
+yHat = predict(fit, x_train, s=0.06789084) #predicting saleprice using testset
+dof = length(y_train) - length(c)
+rse = sqrt(sum((y_train - yHat)^2) / dof)  
+rse #0.2030941 
+
+```
+
+I feel standard error in ridge model is quite high with 20%, I would like to perform lasso regression
+
+```{r lasso regression}
+
+#lasso model
+
+fit = glmnet(x_train, y_train)
+plot(fit, label=T)
+print(fit)
+names(fit)
+
+#coefficients for the model at a specific lambda (elbow)
+cvfit = cv.glmnet(x_train,y_train, alpha = 1)
+lasso_coef = cvfit$glmnet.fit$beta[,cvfit$glmnet.fit$lambda == cvfit$lambda.min] #extracting coefficients for future analysis
+#lasso_coef = exp(lasso_coef)
+plot(cvfit) #lambda = 0.002556046 at elbow
+
+coef(fit, s=0.002556046)    
+
+c = as.matrix(coef(fit, s=0.002556046))
+yHat = predict(fit, x_train, s=0.002556046) #predicting saleprice using testset
+dof = length(y_train) - length(c)
+rse = sqrt(sum((y_train - yHat)^2) / dof)  
+rse #0.1458287
+
+# 20 insignificant variable coefficients shrank to zero and standard error in lasso model is less than ridge with 14% so i continue to predict saleprice
+sum(is.na(x_test))
+which(is.na(x_test[,2]))
+
+#predicting saleprice using testset
+yPredict = predict(fit, x_test, s=0.002556046)
+final_pred = exp(yPredict)
+head(final_pred)
+which(is.na(final_pred))
+```
+
+
+```{r extracting predictions}
+write.csv(final_pred,"E:/Documents/ADVANCED DATA ANALYSIS/house-prices-advanced-regression-techniques/Advanced Data Analysis/predictions.csv")
+
+```
+
+```{r comparing coefficients}
+library(data.table)
+coef = data.table(lasso_coef,ridge_coef,multiple_coef)
+coef[,variables := colnames(hd)]
+coef1 = coef[-1,]
+
+
+
+plot_coef = melt(coef1, id.vars = 'variables',variable.name = 'model',value.name = 'coefficient')
+library(ggplot2)
+ggplot(plot_coef, aes(x= variables,y = coefficient,fill = model))+
+  coord_flip()+
+  geom_bar(stat = 'identity')+
+  facet_wrap(~ model)+
+  guides(fill=F)
+  
+
+```
